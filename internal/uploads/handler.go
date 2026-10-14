@@ -105,6 +105,7 @@ func (handler *Handler) Download(responseWriter http.ResponseWriter, request *ht
 		handler.fileNotFound(responseWriter)
 		return
 	}
+	// De Morgan's Law: The negation of 'A or B' is 'not A and not B'
 	if file.UserID != currentSession.User.ID && (currentSession.User.Role != "support" && currentSession.User.Role != "admin") {
 		handler.fileNotFound(responseWriter)
 		return
