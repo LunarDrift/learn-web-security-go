@@ -237,6 +237,6 @@ func parseRating(value string) (int64, bool) {
 }
 
 func parseBody(value string) (string, bool) {
-	parsed := strings.TrimSpace(value)
-	return parsed, parsed != "" && utf8.RuneCountInString(parsed) <= maximumBodyLength
+	body := strings.TrimSpace(value)
+	return body, body != "" && utf8.RuneCountInString(body) <= maximumBodyLength
 }
