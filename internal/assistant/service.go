@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"regexp"
+	"slices"
 	"strconv"
 
 	"github.com/bootdotdev/learn-web-security/internal/httpx"
@@ -60,21 +61,17 @@ func RunSimulatedAssistant(ctx context.Context, request Request) (string, error)
 	if len(request.Messages) == 0 {
 		return "Ask me about an order using its order number.", nil
 	}
-	var userMessage string
-	for _, message := range request.Messages {
-		if message.Role == "user" {
-			userMessage = message.Content
-		}
-	}
-	// userMessage := request.Messages[len(request.Messages)-1].Content
+	userMessage := latestUserMessage(request.Messages)
 	orderID, found := requestedOrderID(userMessage)
 	if !found {
 		return "Ask me about an order using its order number.", nil
 	}
+	if refundPattern.MatchString(userMessage) {
+		return "I cannot issue refunds. Please contact support.", nil
+	}
 	userID, _ := requestedUserID(userMessage)
 	for _, tool := range request.Tools {
-		toolRequested := tool.Name == "get_order_status" && !refundPattern.MatchString(userMessage) || tool.Name == "issue_refund" && refundPattern.MatchString(userMessage)
-		if toolRequested && tool.Execute != nil {
+		if tool.Name == "get_order_status" && tool.Execute != nil {
 			return tool.Execute(ctx, map[string]any{"orderId": orderID, "userId": userID})
 		}
 	}
@@ -102,14 +99,16 @@ func (service *Service) createTools() []Tool {
 				return "Order #" + strconv.FormatInt(order.ID, 10) + " is " + order.Status + ".", nil
 			},
 		},
-		{
-			Name:        "issue_refund",
-			Description: "Issue a refund for an order.",
-			Execute: func(context.Context, map[string]any) (string, error) {
-				return "Refund issued.", nil
-			},
-		},
 	}
+}
+
+func latestUserMessage(messages []Message) string {
+	for _, message := range slices.Backward(messages) {
+		if message.Role == "user" {
+			return message.Content
+		}
+	}
+	return ""
 }
 
 func requestedOrderID(message string) (int64, bool) {
