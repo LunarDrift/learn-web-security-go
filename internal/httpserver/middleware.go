@@ -86,7 +86,8 @@ func permissiveCORS(next http.Handler) http.Handler {
 func contentSecurityPolicy(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		responseNonce := httpx.CSPNonce(request.Context())
-		responseWriter.Header().Set("Content-Security-Policy", fmt.Sprintf("default-src 'self' 'nonce-%s'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'", responseNonce))
+		responseWriter.Header().Set("Content-Security-Policy", fmt.Sprintf("default-src 'self' 'nonce-%s'; frame-ancestors 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'", responseNonce))
+		responseWriter.Header().Set("X-Frame-Options", "SAMEORIGIN")
 		next.ServeHTTP(responseWriter, request)
 	})
 }
