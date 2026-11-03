@@ -9,15 +9,15 @@ import (
 )
 
 type Product struct {
-	ID             int64  `json:"id"`
-	Name           string `json:"name"`
-	Description    string `json:"description"`
-	ImagePath      string `json:"image_path"`
-	PriceCents     int64  `json:"price_cents"`
-	CostCents      int64  `json:"cost_cents"`
-	InventoryCount int64  `json:"inventory_count"`
-	IsActive       bool   `json:"is_active"`
-	CreatedAt      string `json:"created_at"`
+	ID             int64
+	Name           string
+	Description    string
+	ImagePath      string
+	PriceCents     int64
+	CostCents      int64
+	InventoryCount int64
+	IsActive       bool
+	CreatedAt      string
 }
 
 type Review struct {
@@ -33,12 +33,11 @@ type Review struct {
 }
 
 type Store struct {
-	database *sql.DB
-	queries  *dbgen.Queries
+	queries *dbgen.Queries
 }
 
 func NewStore(database *sql.DB) *Store {
-	return &Store{database: database, queries: dbgen.New(database)}
+	return &Store{queries: dbgen.New(database)}
 }
 
 func (store *Store) ListProducts(ctx context.Context, maxResults int64) ([]Product, error) {
@@ -50,42 +49,14 @@ func (store *Store) ListProducts(ctx context.Context, maxResults int64) ([]Produ
 }
 
 func (store *Store) SearchProducts(ctx context.Context, query string, maxResults int64) ([]Product, error) {
-	activeProducts, err := store.queries.SearchActiveProducts(ctx, dbgen.SearchActiveProductsParams{
+	rows, err := store.queries.SearchActiveProducts(ctx, dbgen.SearchActiveProductsParams{
 		Pattern:    "%" + query + "%",
 		MaxResults: maxResults,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("search products: %w", err)
 	}
-	var products []Product
-	for _, product := range activeProducts {
-		p := Product{
-			ID:             product.ID,
-			Name:           product.Name,
-			Description:    product.Description,
-			ImagePath:      product.ImagePath,
-			PriceCents:     product.PriceCents,
-			CostCents:      product.CostCents,
-			InventoryCount: product.InventoryCount,
-			IsActive:       product.IsActive == 1,
-			CreatedAt:      product.CreatedAt,
-		}
-		products = append(products, p)
-	}
-	return products, nil
-}
-
-func (store *Store) ListAllProducts(ctx context.Context) ([]Product, error) {
-	rows, err := store.database.QueryContext(ctx, `
-		SELECT id, name, description, image_path, price_cents, cost_cents, inventory_count, is_active, created_at
-		FROM products
-		ORDER BY id
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("list all products: %w", err)
-	}
-	defer rows.Close()
-	return scanProducts(rows)
+	return mapProducts(rows), nil
 }
 
 func (store *Store) FindProduct(ctx context.Context, productID int64) (Product, bool, error) {
@@ -141,18 +112,4 @@ func mapProduct(row dbgen.Product) Product {
 		IsActive:       row.IsActive == 1,
 		CreatedAt:      row.CreatedAt,
 	}
-}
-
-func scanProducts(rows *sql.Rows) ([]Product, error) {
-	products := make([]Product, 0)
-	for rows.Next() {
-		var product Product
-		var active int64
-		if err := rows.Scan(&product.ID, &product.Name, &product.Description, &product.ImagePath, &product.PriceCents, &product.CostCents, &product.InventoryCount, &active, &product.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan product: %w", err)
-		}
-		product.IsActive = active == 1
-		products = append(products, product)
-	}
-	return products, rows.Err()
 }
